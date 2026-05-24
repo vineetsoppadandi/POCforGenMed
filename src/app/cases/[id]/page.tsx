@@ -30,18 +30,9 @@ import clsx from "clsx";
 import { getCaseById } from "@/data/cases";
 import { OSCECase, ChatMessage, MarkingCategory } from "@/lib/types";
 import { getAttempt, saveAttempt, getApiKey, setApiKey as persistApiKey } from "@/lib/progress";
+import { matchScriptedResponse } from "@/lib/scripted-chat";
 
 type Phase = "briefing" | "active" | "marking" | "debrief";
-
-function matchScriptedResponse(query: string, osce: OSCECase): string {
-  const lower = query.toLowerCase();
-  for (const r of osce.scriptedResponses) {
-    if (r.keywords.some((k) => lower.includes(k.toLowerCase()))) {
-      return r.response;
-    }
-  }
-  return osce.defaultResponse;
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);

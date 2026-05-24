@@ -14,19 +14,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing messages or systemPrompt" }, { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey });
+  try {
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 300,
+      system: systemPrompt,
+      messages: messages.slice(-10),
+    });
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 300,
-    system: systemPrompt,
-    messages: messages.slice(-10), // keep last 10 turns for context
-  });
+    const content = response.content[0];
+    if (content.type !== "text") {
+      return NextResponse.json({ error: "Unexpected response type" }, { status: 502 });
+    }
 
-  const content = response.content[0];
-  if (content.type !== "text") {
-    return NextResponse.json({ error: "Unexpected response type" }, { status: 500 });
+    return NextResponse.json({ content: content.text });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    const status = message.toLowerCase().includes("authentication") || message.toLowerCase().includes("invalid api key") ? 401 : 502;
+    return NextResponse.json({ error: message }, { status });
   }
-
-  return NextResponse.json({ content: content.text });
 }
