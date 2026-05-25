@@ -31,10 +31,49 @@ import { matchScriptedResponse } from "@/lib/scripted-chat";
 
 type Phase = "briefing" | "active" | "marking" | "debrief";
 
+type SessionSnapshot = {
+  caseId: string;
+  phase: Phase;
+  messages: ChatMessage[];
+  timeLeft: number;
+  markedItems: Record<string, number>;
+  studyMode: boolean;
+};
+
+const SESSION_KEY = "osce_session";
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function loadSession(caseId: string): SessionSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as SessionSnapshot;
+    if (data.caseId !== caseId) return null;
+    if (data.phase === "briefing" || data.phase === "debrief") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(snapshot: SessionSnapshot): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+  } catch {
+    /* quota / disabled storage */
+  }
+}
+
+function clearSession(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 export default function StationClient({ osce }: { osce: OSCECase }) {
@@ -64,7 +103,17 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
       setApiKeyState(savedKey);
       setAiMode(true);
     }
-  }, []);
+    const restored = loadSession(osce.id);
+    if (restored) {
+      setPhase(restored.phase);
+      setMessages(restored.messages);
+      setTimeLeft(restored.timeLeft);
+      setMarkedItems(restored.markedItems);
+      setStudyMode(restored.studyMode);
+      if (restored.phase === "active" && restored.timeLeft > 0) setTimerRunning(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [osce.id]);
 
   useEffect(() => {
     if (timerRunning && timeLeft > 0) {
@@ -86,6 +135,24 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Persist in-progress session so refresh doesn't wipe it
+  useEffect(() => {
+    if (phase === "active" || phase === "marking") {
+      saveSession({ caseId: osce.id, phase, messages, timeLeft, markedItems, studyMode });
+    }
+  }, [phase, messages, timeLeft, markedItems, studyMode, osce.id]);
+
+  // Warn user before unloading tab/window during an in-progress session
+  useEffect(() => {
+    if (phase !== "active" && phase !== "marking") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [phase]);
 
   const totalMarks = osce.markingCategories.reduce(
     (sum, cat) => sum + cat.items.reduce((s, item) => s + item.marks, 0),
@@ -184,10 +251,18 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
       chatHistory: messages,
     };
     saveAttempt(attempt);
+    clearSession();
     setPhase("debrief");
   }
 
-  function resetStation() {
+  function resetStation(skipConfirm = false) {
+    if (!skipConfirm && (phase === "active" || phase === "marking")) {
+      const ok = window.confirm(
+        "Reset this station? Your chat and any marks will be lost. This cannot be undone."
+      );
+      if (!ok) return;
+    }
+    clearSession();
     setPhase("briefing");
     setMessages([]);
     setInput("");
@@ -197,6 +272,19 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
     setMarkedItems({});
     setExpandedCategories({});
     setActiveDebriefSection(0);
+  }
+
+  function handleBackToLibrary(e: React.MouseEvent) {
+    if (phase === "active" || phase === "marking") {
+      const ok = window.confirm(
+        "Leave this station? Your chat and any marks will be lost. This cannot be undone."
+      );
+      if (!ok) {
+        e.preventDefault();
+        return;
+      }
+      clearSession();
+    }
   }
 
   function getGrade(percent: number): { label: string; color: string } {
@@ -231,7 +319,11 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
       <div className="bg-white border-b border-slate-100 sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/cases" className="p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0">
+            <Link
+              href="/cases"
+              onClick={handleBackToLibrary}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+            >
               <ArrowLeft className="w-4 h-4 text-slate-500" />
             </Link>
             <div className="min-w-0">
@@ -280,7 +372,7 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
             )}
 
             {phase !== "briefing" && (
-              <button onClick={resetStation} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Reset station">
+              <button onClick={() => resetStation()} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Reset station">
                 <RefreshCw className="w-4 h-4 text-slate-500" />
               </button>
             )}
@@ -780,7 +872,7 @@ export default function StationClient({ osce }: { osce: OSCECase }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={resetStation} className="btn-secondary justify-center py-3">
+              <button onClick={() => resetStation(true)} className="btn-secondary justify-center py-3">
                 <RefreshCw className="w-4 h-4" /> Retry this station
               </button>
               <Link href="/cases" className="btn-primary justify-center py-3">

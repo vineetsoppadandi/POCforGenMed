@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search, Filter, Clock, Target, ChevronRight, BookOpen, Stethoscope } from "lucide-react";
 import { allCases } from "@/data/cases";
@@ -24,10 +25,37 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
   AMC: "bg-purple-100 text-purple-700",
 };
 
+const TYPE_VALUES: CaseType[] = ["history", "examination", "communication", "psychiatry", "counselling", "procedural"];
+
+function isCaseType(v: string | null): v is CaseType {
+  return !!v && (TYPE_VALUES as string[]).includes(v);
+}
+
 export default function CasesPage() {
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<CaseType | "all">("all");
+  return (
+    <Suspense fallback={null}>
+      <CasesPageInner />
+    </Suspense>
+  );
+}
+
+function CasesPageInner() {
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get("type");
+  const initialSpecialty = searchParams.get("specialty");
+
+  const [search, setSearch] = useState(initialSpecialty ?? "");
+  const [selectedType, setSelectedType] = useState<CaseType | "all">(
+    isCaseType(initialType) ? initialType : "all"
+  );
   const [selectedDiff, setSelectedDiff] = useState<Difficulty | "all">("all");
+
+  useEffect(() => {
+    const t = searchParams.get("type");
+    const s = searchParams.get("specialty");
+    if (isCaseType(t)) setSelectedType(t);
+    if (s) setSearch(s);
+  }, [searchParams]);
 
   const types = Array.from(new Set(allCases.map((c) => c.type)));
   const difficulties = Array.from(new Set(allCases.map((c) => c.difficulty)));
