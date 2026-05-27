@@ -5,7 +5,6 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
-  Star,
   Target,
   BookOpen,
   MessageSquare,
@@ -16,6 +15,7 @@ import {
   Activity,
   UserCheck,
   Play,
+  MessageCircle,
 } from "lucide-react";
 import { allCases } from "@/data/cases";
 
@@ -83,26 +83,9 @@ const STEPS = [
   { step: "05", title: "Review & Learn", desc: "Read the debrief: teaching points, Australian guidelines, what you missed, and what the examiner was looking for." },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "Aisha Patel",
-    year: "Year 5, University of Melbourne",
-    quote: "I went from failing my OSCE practice exams to passing with flying colours in 4 weeks. The debrief sections are what make OSCEready different — they explain the clinical reasoning, not just the steps.",
-    rating: 5,
-  },
-  {
-    name: "Tom Blackwell",
-    year: "Year 4, Monash University",
-    quote: "The chest pain case caught me out — I completely forgot to ask about tearing pain for aortic dissection. Would have cost me marks in the real exam. Now I never forget.",
-    rating: 5,
-  },
-  {
-    name: "Mei-Ling Tran",
-    year: "Year 5, University of Queensland",
-    quote: "The psychiatric history station is brilliant. Being asked to ask about suicide directly — and being told exactly why — genuinely changed how I approach these consultations.",
-    rating: 5,
-  },
-];
+// TODO (next step): Collect real student testimonials once the platform has active users.
+// This requires a backend or form submission pipeline — not applicable to the current static build.
+// When ready, replace this placeholder section with genuine, attributed reviews.
 
 export default function HomePage() {
   const sampleCases = allCases.slice(0, 3);
@@ -326,29 +309,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Student Reviews — coming soon once real feedback is collected */}
       <section className="py-20 bg-navy-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-white mb-4">What students say</h2>
-            <p className="text-slate-400 max-w-xl mx-auto">From clinical year students across Australian medical schools.</p>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <MessageCircle className="w-7 h-7 text-teal-400" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="glass rounded-2xl p-6">
-                <div className="flex mb-3">
-                  {Array.from({ length: t.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 text-amber-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-300 text-sm leading-relaxed mb-4">"{t.quote}"</p>
-                <div>
-                  <p className="text-white font-semibold text-sm">{t.name}</p>
-                  <p className="text-slate-500 text-xs">{t.year}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-3xl font-bold text-white mb-4">Student reviews</h2>
+          <p className="text-slate-400 max-w-xl mx-auto mb-6 leading-relaxed">
+            We&apos;re in early access. Once students have had a chance to practise, real reviews will appear here.
+          </p>
+          <span className="inline-block px-4 py-2 glass rounded-full text-sm text-slate-300 font-medium">
+            Coming soon — be the first to share your experience
+          </span>
         </div>
       </section>
 
